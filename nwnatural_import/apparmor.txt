@@ -1,0 +1,55 @@
+#include <tunables/global>
+
+profile nwnatural_import flags=(attach_disconnected,mediate_deleted) {
+  #include <abstractions/base>
+  #include <abstractions/nameservice>
+
+  # Broad file/signal permissions inside the container.
+  # Container isolation + explicit denies below carry the real weight.
+  file,
+  signal,
+  network,
+  ptrace peer=nwnatural_import,
+
+  # Deny the kernel + host escape surface.
+  deny mount,
+  deny remount,
+  deny umount,
+  deny pivot_root,
+  deny /proc/*/mem rw,
+  deny /proc/kcore rwklx,
+  deny /proc/sysrq-trigger rwklx,
+  deny /proc/mem rwklx,
+  deny /proc/kmem rwklx,
+  deny /sys/kernel/security/** rwklx,
+  deny /sys/firmware/** rwklx,
+
+  # Deny writes to the read-only-in-spirit image dirs.
+  deny /etc/** w,
+  deny /usr/** w,
+  deny /bin/** w,
+  deny /sbin/** w,
+  deny /lib*/** w,
+  deny /opt/** w,
+
+  # Writable: persistent data, tmp, shared-memory (Chromium), /run,
+  # pwuser's home, and root (used only during the pre-drop chown).
+  /data/** rw,
+  /tmp/** rwk,
+  /run/** rwk,
+  /dev/shm/** rwk,
+  owner /home/pwuser/** rwk,
+  owner /root/** rwk,
+
+  # Capabilities: gosu needs setuid/setgid/dac_override/chown at startup;
+  # everything after runs unprivileged and doesn't use them.
+  capability setuid,
+  capability setgid,
+  capability dac_override,
+  capability chown,
+  capability fowner,
+
+  # Execute anything under the image (Playwright chromium, gosu,
+  # supercronic, jq, python, entrypoint, run.sh).
+  /** ix,
+}
