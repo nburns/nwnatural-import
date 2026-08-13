@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.3
+
+- Fix multi-account picker: the `AccountSelector` widget is a proper
+  closed→open dropdown. Previously we tried to click the account-number
+  div directly, but a wrapper intercepted pointer events. Now we click
+  the trigger first to open the dropdown, then click the option.
+- Single-account logins short-circuit (no picker on the page).
+
 ## 0.1.2
 
 - Emit a heartbeat to `input_datetime.nwnatural_last_import` after

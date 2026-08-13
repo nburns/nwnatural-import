@@ -160,21 +160,31 @@ class NWNaturalScraper:
         log.info("Logged in — landed on %s", page.url)
 
     async def _select_account(self, page: Page, account_no: str) -> None:
-        """If the account picker is present and the requested account isn't
-        the current selection, switch to it."""
-        body_text = await page.locator("body").inner_text()
-        if account_no not in body_text:
-            log.warning("requested account %s not visible on page", account_no)
+        """Multi-account logins render an `AccountSelector` dropdown. It's a
+        proper closed→open widget: clicking the trigger reveals the options
+        list, then you click the desired account.
+        Single-account logins have no picker at all — no-op in that case."""
+        trigger = page.locator(".AccountSelector__trigger").first
+        if await trigger.count() == 0:
+            log.info("no account selector on page (single-account login?)")
             return
-        candidates = page.get_by_text(f"Account No: {account_no}", exact=False)
-        if await candidates.count() == 0:
+
+        # If the trigger already shows our account, we're on the right one.
+        current = (await trigger.inner_text()).strip()
+        if account_no in current:
+            log.info("account %s already selected", account_no)
             return
+
+        # Open the dropdown, then click the account option.
         try:
-            await candidates.first.click()
+            await trigger.click()
+            option = page.get_by_text(f"Account No: {account_no}", exact=False).first
+            await option.wait_for(state="visible", timeout=5_000)
+            await option.click()
             await page.wait_for_load_state("networkidle")
             log.info("selected account %s", account_no)
         except Exception as e:
-            log.warning("account picker click failed (%s); continuing with default", e)
+            log.warning("account picker click failed (%s); continuing with current selection", e)
 
 
 def _parse_row(cells: list[str]) -> GasReading | None:
