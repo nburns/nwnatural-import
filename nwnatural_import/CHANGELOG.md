@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.2
+
+- Emit a heartbeat to `input_datetime.nwnatural_last_import` after
+  every successful run. Pair with a template binary_sensor + HA alert
+  to detect stale imports. No-op if the helper doesn't exist.
+
 ## 0.1.1
 
 - Scraper now always returns the default view (~13 months) first, and

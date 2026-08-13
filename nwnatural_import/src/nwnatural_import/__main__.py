@@ -88,6 +88,10 @@ async def run(mode: str, *, data_dir: Path, opts: ScraperOptions, ha: HAClient,
             )
             log.info("imported %d gas-cost points (USD)", len(cost_entries))
 
+
+        # Heartbeat for stale-import alerting (no-op if helper missing).
+        await ha.touch_heartbeat("input_datetime.nwnatural_last_import")
+
     # Persist state.
     now = datetime.now().astimezone()
     if mode == "backfill":
