@@ -78,36 +78,66 @@ class NWNaturalScraper:
             await page.goto(GAS_USAGE_URL, wait_until="networkidle")
             if self._opts.account_no:
                 await self._select_account(page, self._opts.account_no)
-            await self._expand_date_range(page)
-            await page.wait_for_selector("table tbody tr", timeout=30_000)
-            rows = await page.eval_on_selector_all(
-                "table tbody tr",
-                "els => els.map(tr => [...tr.querySelectorAll('td')].map(td => td.innerText.trim()))",
-            )
-            log.info("scraped %d gas-usage rows", len(rows))
+
+            # Always scrape the default view first (guaranteed ~13 months).
+            default_rows = await self._scrape_table(page)
+
+            # Best-effort date-range expansion to grab up to 3 years. If it
+            # fails or the resulting table is empty, we still have the
+            # default rows and haven't broken anything.
+            expanded_rows: list[list[str]] = []
+            try:
+                await self._expand_date_range(page)
+                expanded_rows = await self._scrape_table(page)
+            except Exception as e:
+                log.warning("date-range expansion failed: %s", e)
+
+            rows = expanded_rows if len(expanded_rows) > len(default_rows) else default_rows
+            log.info("scraped %d gas-usage rows (default=%d, expanded=%d)",
+                     len(rows), len(default_rows), len(expanded_rows))
             return [r for r in (_parse_row(cells) for cells in rows) if r is not None]
         finally:
             await page.close()
 
+    async def _scrape_table(self, page: Page) -> list[list[str]]:
+        try:
+            await page.wait_for_selector("table tbody tr", timeout=15_000)
+        except Exception:
+            return []
+        return await page.eval_on_selector_all(
+            "table tbody tr",
+            "els => els.map(tr => [...tr.querySelectorAll('td')].map(td => td.innerText.trim()))",
+        )
+
     async def _expand_date_range(self, page: Page) -> None:
         """Set From = today - max_years, To = today, and click Submit.
-        The default view only shows ~13 months; the portal exposes up to 3."""
+        The default view only shows ~13 months; the portal exposes up to 3.
+        The From/To inputs are Angular Material datepicker inputs with
+        specific ids on this page."""
         today = date.today()
         from_d = today.replace(year=today.year - self._opts.max_years)
-        # The From/To inputs aren't native <input type=date>; look for text
-        # inputs near the "From:" / "To:" labels. Try a range of selectors,
-        # skip silently if none match (we still get the default view).
         try:
-            from_input = page.get_by_label("From", exact=False).first
-            to_input = page.get_by_label("To", exact=False).first
-            await from_input.wait_for(state="visible", timeout=5_000)
+            from_input = page.locator("#startDate")
+            to_input = page.locator("#endDate")
+            await from_input.wait_for(state="visible", timeout=10_000)
             await from_input.fill(from_d.strftime("%m/%d/%Y"))
             await to_input.fill(today.strftime("%m/%d/%Y"))
-            await page.get_by_role("button", name="Submit").click()
+            # There are 3 "Submit" buttons on the page: 2 are search-bar
+            # submits (`.GlobalHeader__search-sub`), the third is the
+            # date-range submit. Filter to just that one.
+            submit = page.locator("button.Button--auto:not(.GlobalHeader__search-sub)")
+            await submit.first.click()
             await page.wait_for_load_state("networkidle")
             log.info("expanded date range: %s → %s", from_d, today)
         except Exception as e:
             log.warning("could not expand date range (%s); using portal default", e)
+            # If Submit left the table in a bad state, reload to reset.
+            try:
+                await page.goto(GAS_USAGE_URL, wait_until="networkidle")
+                if self._opts.account_no:
+                    await self._select_account(page, self._opts.account_no)
+            except Exception as reload_err:
+                log.warning("reload after failed date-range also failed: %s", reload_err)
 
     async def _ensure_logged_in(self, page: Page) -> None:
         await page.goto(GAS_USAGE_URL, wait_until="networkidle")

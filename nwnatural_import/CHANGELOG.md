@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.1.1
+
+- Scraper now always returns the default view (~13 months) first, and
+  only replaces it if the date-range-expansion Submit produces MORE
+  rows. Previously a failed Submit could leave the table empty and
+  return 0 rows. In practice the Submit-then-wait race prevents us
+  from getting the full 3 years from the portal; falling back to 13
+  months is the honest MVP.
+- Better Submit-button selector (there are 3 "Submit" buttons on the
+  page; two are search-bar submits, we now target only the date-range
+  one via `button.Button--auto:not(.GlobalHeader__search-sub)`).
+- Correct date-range input selectors: `#startDate` / `#endDate`
+  (`get_by_label("From")` and `("To")` matched unrelated elements
+  because of substring matching in aria-labels).
+
 ## 0.1.0
 
 Initial release.
