@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.4
+
+- `run.sh` now prefixes its own log lines with a matching timestamp
+  (previously bash echo lines had no timestamp, mixed awkwardly with
+  the timestamped Python logs).
+- On missing/incomplete config, log the message once and then `sleep
+  infinity` instead of exiting. Supervisor auto-restarts the add-on
+  when you save config, so exit-looping just spammed the log with
+  repeated errors.
+
 ## 0.1.3
 
 - Fix multi-account picker: the `AccountSelector` widget is a proper
