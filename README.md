@@ -10,6 +10,14 @@ logs into `nwnatural.com/account/gas-usage` in a headless browser,
 scrapes the usage table, and inserts the values as HA long-term
 statistics — both consumption (ft³) and cost (USD).
 
+## Data staleness
+
+NW Natural residential meters are AMR (drive-by radio read, once a
+month), so **both consumption and cost update ~monthly** — whenever
+a new bill is posted. Between bill cycles the add-on has nothing new
+to import; it just re-imports the same last few months idempotently.
+Expect data to trail real time by up to **~30 days**.
+
 ## Features
 
 - Automatic monthly import into HA long-term statistics.
