@@ -60,7 +60,7 @@ Then:
      billed dollars.
 4. Save.
 
-See [DOCS.md](DOCS.md) for the full options reference.
+See [DOCS.md](nwnatural_import/DOCS.md) for the full options reference.
 
 ## Requirements
 
