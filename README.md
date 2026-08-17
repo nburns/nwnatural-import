@@ -18,6 +18,11 @@ a new bill is posted. Between bill cycles the add-on has nothing new
 to import; it just re-imports the same last few months idempotently.
 Expect data to trail real time by up to **~30 days**.
 
+Because of this lag, the HA Energy dashboard's default **Today** view
+will look empty — the newest data point is from the last posted bill,
+potentially weeks ago. Change the range to **Month** (or further back)
+to see the imported bars.
+
 ## Features
 
 - Automatic monthly import into HA long-term statistics.
