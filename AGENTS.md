@@ -110,6 +110,10 @@ when cookies expire.
   authenticated with `$SUPERVISOR_TOKEN` — no long-lived token needed.
 - Add-on files: `config.yaml`, `Dockerfile`, `build.yaml`, `README.md`,
   `DOCS.md`, `CHANGELOG.md`, `apparmor.txt`. Icons aren't checked in.
+- **Bump `config.yaml` `version:` whenever you ship a change.** HA
+  supervisor detects updates by comparing this string, not commit
+  hashes or CHANGELOG entries. If you skip the bump the add-on store
+  will never surface the update, even after a repo reload.
 - Installable as a HA custom repository via the `repository.yaml` at
   the repo root.
 
