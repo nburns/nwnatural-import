@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.1.5
+
+- `page.goto` calls in the scraper now retry up to 3 times on transient
+  Chromium network errors (`ERR_NETWORK_CHANGED`, `ERR_INTERNET_DISCONNECTED`,
+  `ERR_TIMED_OUT`, `ERR_CONNECTION_RESET`, `ERR_ABORTED`,
+  `ERR_NAME_NOT_RESOLVED`). Backoff is 5s then 15s. Fixes spurious crashes
+  at container boot when the host network is momentarily unready.
+- `fetch_gas_readings` now raises `RuntimeError` instead of returning an empty
+  list when the portal yields zero rows. This causes the process to exit
+  nonzero, so cron/supervisor retries within the hour rather than silently
+  recording "success" and waiting ~24h.
+
 ## 0.1.4
 
 - `run.sh` now prefixes its own log lines with a matching timestamp

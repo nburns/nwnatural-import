@@ -16,12 +16,40 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from pathlib import Path
 
-from playwright.async_api import BrowserContext, Page, async_playwright
+from playwright.async_api import BrowserContext, Error as PlaywrightError, Page, async_playwright
 
 GAS_USAGE_URL = "https://www.nwnatural.com/account/gas-usage"
 LOGIN_HOST = "identity.nwnatural.com"
 
+_RETRYABLE_NET_ERRORS = (
+    "ERR_NETWORK_CHANGED",
+    "ERR_INTERNET_DISCONNECTED",
+    "ERR_TIMED_OUT",
+    "ERR_CONNECTION_RESET",
+    "ERR_ABORTED",
+    "ERR_NAME_NOT_RESOLVED",
+)
+
 log = logging.getLogger(__name__)
+
+
+async def _goto_with_retry(page: Page, url: str, *, tries: int = 3,
+                           delay_s: float | None = None) -> None:
+    backoffs = [5.0, 15.0] if delay_s is None else [delay_s] * (tries - 1)
+    last_exc: PlaywrightError | None = None
+    for attempt in range(1, tries + 1):
+        try:
+            await page.goto(url, wait_until="networkidle")
+            return
+        except PlaywrightError as exc:
+            msg = str(exc)
+            if not any(code in msg for code in _RETRYABLE_NET_ERRORS):
+                raise
+            last_exc = exc
+            log.info("page.goto transient error (attempt %d/%d): %s", attempt, tries, msg)
+            if attempt < tries:
+                await asyncio.sleep(backoffs[attempt - 1])
+    raise last_exc  # type: ignore[misc]
 
 
 @dataclass(frozen=True)
@@ -75,7 +103,7 @@ class NWNaturalScraper:
         page = await self._ctx.new_page()
         try:
             await self._ensure_logged_in(page)
-            await page.goto(GAS_USAGE_URL, wait_until="networkidle")
+            await _goto_with_retry(page, GAS_USAGE_URL)
             if self._opts.account_no:
                 await self._select_account(page, self._opts.account_no)
 
@@ -95,6 +123,8 @@ class NWNaturalScraper:
             rows = expanded_rows if len(expanded_rows) > len(default_rows) else default_rows
             log.info("scraped %d gas-usage rows (default=%d, expanded=%d)",
                      len(rows), len(default_rows), len(expanded_rows))
+            if len(rows) == 0:
+                raise RuntimeError("NW Natural returned zero rows — likely a page-render or auth issue")
             return [r for r in (_parse_row(cells) for cells in rows) if r is not None]
         finally:
             await page.close()
@@ -140,7 +170,7 @@ class NWNaturalScraper:
                 log.warning("reload after failed date-range also failed: %s", reload_err)
 
     async def _ensure_logged_in(self, page: Page) -> None:
-        await page.goto(GAS_USAGE_URL, wait_until="networkidle")
+        await _goto_with_retry(page, GAS_USAGE_URL)
         if LOGIN_HOST not in page.url:
             log.info("Session restored — already logged in")
             return

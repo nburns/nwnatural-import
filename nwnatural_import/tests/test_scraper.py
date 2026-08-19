@@ -1,6 +1,16 @@
 from datetime import date
+from unittest.mock import AsyncMock, MagicMock
 
-from nwnatural_import.scraper import _parse_row
+import pytest
+
+from nwnatural_import.scraper import _goto_with_retry, _parse_row
+
+try:
+    from playwright.async_api import Error as PlaywrightError
+except ImportError:
+    # Construct a minimal stand-in when playwright isn't installed.
+    class PlaywrightError(Exception):  # type: ignore[no-redef]
+        pass
 
 
 def test_parses_standard_row():
@@ -31,3 +41,24 @@ def test_rejects_row_with_bad_date():
 
 def test_rejects_short_row():
     assert _parse_row(["07/21/2026", "July"]) is None
+
+
+async def test_goto_retries_on_transient_network_error():
+    page = MagicMock()
+    retryable_exc = PlaywrightError("net::ERR_NETWORK_CHANGED at https://example.com")
+    page.goto = AsyncMock(side_effect=[retryable_exc, retryable_exc, None])
+
+    await _goto_with_retry(page, "https://example.com", tries=3, delay_s=0.0)
+
+    assert page.goto.call_count == 3
+
+
+async def test_goto_reraises_non_retryable_error():
+    page = MagicMock()
+    non_retryable = PlaywrightError("Execution context was destroyed")
+    page.goto = AsyncMock(side_effect=non_retryable)
+
+    with pytest.raises(PlaywrightError, match="Execution context was destroyed"):
+        await _goto_with_retry(page, "https://example.com", tries=3, delay_s=0.0)
+
+    assert page.goto.call_count == 1

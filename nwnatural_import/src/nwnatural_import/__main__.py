@@ -39,10 +39,6 @@ async def run(mode: str, *, data_dir: Path, opts: ScraperOptions, ha: HAClient,
     async with NWNaturalScraper(opts) as scraper:
         readings = await scraper.fetch_gas_readings()
 
-    if not readings:
-        log.warning("scraper returned no readings — nothing to import")
-        return
-
     readings.sort(key=lambda r: r.read_date)
     log.info("Parsed %d monthly readings (%s → %s)",
              len(readings), readings[0].read_date, readings[-1].read_date)

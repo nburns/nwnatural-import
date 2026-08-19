@@ -21,6 +21,9 @@ dev = [
 [project.scripts]
 nwnatural-import = "nwnatural_import.__main__:main"
 
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+
 [build-system]
 requires = ["uv_build>=0.11"]
 build-backend = "uv_build"
