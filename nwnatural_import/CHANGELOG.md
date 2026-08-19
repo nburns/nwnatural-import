@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.6
+
+- Add add-on icon (128×128, green→blue gradient diamond with a white N clipped to the diamond).
+
 ## 0.1.5
 
 - `page.goto` calls in the scraper now retry up to 3 times on transient
