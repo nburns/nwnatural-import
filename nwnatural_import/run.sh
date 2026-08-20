@@ -9,6 +9,8 @@ OPTIONS=/data/options.json
 STATE_FILE=/data/state.json
 CRONTAB=/data/crontab
 
+mkdir -p /data/logs
+
 if [[ ! -f "${OPTIONS}" ]]; then
   tserr "${OPTIONS} not found — waiting for add-on options (supervisor will restart me when you save config)"
   sleep infinity
@@ -25,6 +27,7 @@ export DATA_DIR=/data
 
 RUN_BACKFILL=$(jq -r '.run_backfill_on_start' "${OPTIONS}")
 SCHEDULE=$(jq -r '.schedule' "${OPTIONS}")
+export IMPORTER_CRON="${SCHEDULE}"
 
 if [[ -z "${NW_USERNAME}" || "${NW_USERNAME}" == "null" ]]; then
   tserr "username not set — waiting for you to configure the add-on (Configuration tab → Save; supervisor will restart me)"
@@ -49,5 +52,10 @@ cat > "${CRONTAB}" <<EOF
 ${SCHEDULE} python -m nwnatural_import --mode incremental
 EOF
 
+ts "starting web server"
+python -m nwnatural_import.web >> /data/logs/main.log 2>&1 &
+
 ts "starting supercronic with schedule: ${SCHEDULE}"
-exec supercronic "${CRONTAB}"
+supercronic "${CRONTAB}" &
+
+wait -n

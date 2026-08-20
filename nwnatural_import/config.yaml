@@ -1,5 +1,5 @@
 name: NW Natural Import
-version: "0.1.6"
+version: "0.2.0"
 slug: nwnatural_import
 description: Pull NW Natural monthly gas usage + billed cost into Home Assistant long-term statistics.
 url: https://github.com/nburns/nwnatural-import
@@ -29,8 +29,10 @@ uart: false
 kernel_modules: false
 full_access: false
 apparmor: true      # loads apparmor.txt
-ingress: false
+ingress: true
+ingress_port: 8099
 panel_icon: mdi:fire
+panel_title: "NW Natural"
 options:
   username: ""
   password: ""
